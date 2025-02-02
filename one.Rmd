@@ -1,10 +1,12 @@
 ---
 title: "1st_ML"
-author: "Tarun BT"
+author: "Tarun BT_811390248"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
-## 1. Conduct basic descriptive statistics, including head, tail, dimensions, summary, structure, mean, mode, median, and check for any missing values.
+## 1.Conduct basic descriptive statistics, including head, tail, dimensions, summary, structure, mean, mode, median, and check for any missing values.
 ```{r setup, include=TRUE}
 library(dplyr)
 library(readr)
@@ -41,8 +43,9 @@ list(
 )  # Creates a list storing mean, median, mode, and missing value counts for each column
 ```
 
-## Questio-2 
-The data set used here contains nine columns and 1000 rows. The first intention of the current analysis is to examine the impact of various factors on customer attrition and mine knowledge with the help of descriptive statistics. The examination of data structure identified that apart from categorical Type-"Contract" column, all the variables are numeric. Then the data set was checked using the is.na command to determine if there were any missing values. They were discovered to be none. In this case, descriptive statistics were utilized to determine additional information about the behavior of the customers. Summary statistics of the numerous variables in the data set, such as Mean, Median, and Mode, are given in the summary table. As the mean and median values for most of the variables are similar, the data is well balanced and does not contain many discrepancies. The mean value of churn is 0.504, i.e., in between 50 and 50 percent of the customers are remaining or leaving. Clients can be leaving due to the cost if the average monthly charge for the clients who have left is greater. Data Use, Voice Calling Minutes, Charges per Month, and Roaming Use did not have a mode when we studied the mode for each variable since all values were distinct. Churn mode was 1 and indicated that most customers were exiting the business as opposed to retaining it. Most frequently used type of contract being selected by the customers was monthly type, even according to mode for contract type. Additionally, the fact that the majority of customers call customer support more than twice points to ongoing or unresolved issues. Extreme differences between minimum and maximum data usage must be investigated.
+##  2.Write an interpretation of your analysis in part 1(descriptive statistics) in R Markdown report.
+
+The data set used here is 1000 rows and 9 columns, or 1000 observations and 9 variables in R terms. The main goal of this analysis is to investigate how different factors affect customer attrition and extract knowledge using descriptive statistics. Analysis of the data structure revealed that, except for the Contract Type column, which was categorical, all of the variables were numerical. Key statistics for the many variables in the dataset, including the mean, median, and quartiles, are displayed in the summary table. Here, descriptive statistics were employed to learn more about the behavior of the customers. Key statistics, including mean, median, and quartiles for each variable in the dataset, are displayed in the summary table. Descriptive statistics were used to learn more about the behavior of the customers. The is.na command was used to check the dataset for missing values, and the results showed that there were none. The mean value for monthly charges is 58.41, indicating that a fair number of customers are paying higher amounts. With a mean churn value of 0.504, almost half of the customers remain while the other half depart. Additionally, the churn mode was 1, indicating that more consumers were leaving the business than were remaining. Customers experience up to 10 call failures on average, according to the mean number for call failures, which is 10. Some consumers have never experienced a call failure, but others have, and this can lead to churn and customer discontent. Data usage, voice minutes, monthly charges, and roaming usage were found to have no mode when the mode for each variable was examined because each value was distinct.The most popular contract type selected by clients was the monthly type, according to the mode for contract type as well. Additionally, it was noted that while the most frequent number of customer care calls was zero, on average, clients had contacted customer assistance at least twice, indicating persistent or unresolved concerns. There is a concerning discrepancy between the minimum and maximum data usage, which calls for more research.
 
 ## 3.Select and compare two or more variables from the dataset, such as DataUsage and Churn. Create a table for the  selected variables using the df(dataframe) and select commands.
 
@@ -69,7 +72,7 @@ The analysis suggests no strong relationship between DataUsage and Churn.
 Both boxplots and correlation values confirm this
 Other factors like contract type, customer service calls, or pricing might be better indicators of churn
 
-## 4. Transform at least one variable (any transformation such  as log(x) and generate a plot using ‘ggplot’ for the transformed variable.
+## 4.Transform at least one variable (any transformation such  as log(x) and generate a plot using ‘ggplot’ for the transformed variable.
 ```{r, echo=TRUE}
 
 data <- data %>% mutate(LogDataUsage = log(DataUsage + 1)) # Creates a new column 'LogDataUsage' by applying a log transformation to 'DataUsage' to normalize its distribution.
