@@ -1,0 +1,188 @@
+---
+title: "3rd_Assignment"
+author: "Tarun BT"
+date: "02/23/2025"
+output: html_document
+---
+
+Imported necessary library files required for project 
+```{r setup, include=T}
+library(tinytex)
+library(e1071)
+library(readr)
+library(ggplot2)
+library(pROC)
+library(dplyr)
+library(gmodels)
+library(class)
+library(caret)
+```
+
+Reading data set
+```{r}
+Vehicles_data <- read.csv("C:\\Users\\Tarun\\OneDrive\\Desktop\\R program\\3rdd_Assignment\\Vehicles_Sales.csv")
+summary(Vehicles_data) # for finding the statistics of the data 
+```
+
+
+```{r}
+sum(is.na(Vehicles_data)) # checking for missing values in data set
+  
+ggplot(Vehicles_data, aes(x = factor(STATUS), fill = factor(STATUS))) + geom_bar() + scale_fill_manual(values = c("red", "blue")) + 
+  ggtitle("Distribution of Order Status") + xlab("Status") + ylab("Count") # just to the check the distribution of order STATUS(0 - Cancelled , 1 - Shipped) of the data set before applying algo  
+```
+
+Removing duplicate records
+```{r}
+Vehicles_data <- Vehicles_data[ !duplicated (Vehicles_data), ]
+```
+
+Drop YEAR_ID and PRODUCTLINE columns
+```{r}
+Vehicles_data <- Vehicles_data[, -c(9,10)] 
+```
+
+Convert DEALSIZE to factor and create dummy variables
+```{r}
+Vehicles_data$DEALSIZE <- as.factor(Vehicles_data$DEALSIZE) 
+```
+```{r}
+groups <- dummyVars(~., data = Vehicles_data)
+```
+```{r}
+Vehicles_data <- as.data.frame(predict(groups, Vehicles_data))
+```
+
+## Question-1
+Partition the Data - Training - 50%, Validation -30%, and Testing -20%
+```{r}
+set.seed(123)  # For reproducibility
+trainIndex <- createDataPartition(Vehicles_data$STATUS, p = 0.5, list = FALSE)
+train.df <- Vehicles_data[trainIndex, ]
+temp.df <- Vehicles_data[-trainIndex, ]
+
+validIndex <- createDataPartition(temp.df$STATUS, p = 0.6, list = FALSE)
+valid.df <- temp.df[validIndex, ]
+test.df <- temp.df[-validIndex, ]
+```
+
+For checking number of rows - partitioned data
+```{r}
+nrow(valid.df)
+summary(valid.df)
+```
+```{r}
+nrow(test.df)
+summary(test.df)
+```
+```{r}
+nrow(train.df)
+summary(train.df)
+```
+# To check the duplicate records among the split Train, Validation & Test
+```{r}
+duplicates_all_three <- intersect(intersect(train.df, valid.df), test.df)
+
+print(duplicates_all_three) #to verify there is no common records among the split.
+```
+
+
+Normalize the Data set by removing "STATUS"
+```{r}
+norm.values <- preProcess(train.df[, -6], method=c("center", "scale"))
+```
+```{r}
+train.norm.df <- predict(norm.values, train.df[, -6])
+```
+```{r}
+valid.norm.df <- predict(norm.values, valid.df[, -6])
+```
+```{r}
+test.norm.df <- predict(norm.values, test.df[, -6])
+```
+
+## Question-2
+k-NN Classification for Given Vehicle (k=1)
+```{r}
+new_vehicle <- data.frame(ORDERNUMBER=10322, QUANTITYORDERED=50, PRICEEACH=100,
+                           ORDERLINENUMBER=6, SALES=12536.5, QTR_ID=4, MONTH_ID=11,
+                           MSRP=127, DEALSIZE.Large=1, DEALSIZE.Small=0, DEALSIZE.Medium=0)
+```
+```{r}
+new_vehicle_norm <- predict(norm.values, new_vehicle)
+```
+```{r}
+k1_pred <- knn(train.norm.df, new_vehicle_norm, train.df$STATUS, k=1)
+k1_pred
+```
+
+## Question-3
+Finding Optimal k
+```{r}
+accuracy.df <- data.frame(k = seq(1, 15, 1), overallaccuracy = rep(0, 15))
+
+for(i in 1:15) {
+  pred <- knn(train.norm.df, valid.norm.df, train.df$STATUS, k = i)
+  cm <- confusionMatrix(pred, as.factor(valid.df$STATUS))
+  accuracy.df$overallaccuracy[i] <- cm$overall["Accuracy"]
+  cat("For k =", i, "Accuracy:", accuracy.df$overallaccuracy[i], "\n")
+}
+
+best_k <- accuracy.df$k[which.max(accuracy.df$overallaccuracy)]
+cat("Best k value:", best_k, "with highest accuracy of", max(accuracy.df$overallaccuracy), " ")
+
+```
+```{r}
+plot(accuracy.df$k, accuracy.df$overallaccuracy, type = "b", pch = 20, col = "red",
+xlab = "K Value", ylab = "Accuracy", main = "K vs Accuracy for KNN")
+lines(accuracy.df$k, accuracy.df$overallaccuracy, col = "blue")
+```
+
+Model Evaluation
+```{r}
+final_pred <- knn(train.norm.df, test.norm.df, train.df$STATUS, k = best_k)
+final_cm <- confusionMatrix(final_pred, as.factor(test.df$STATUS))
+print(final_cm)
+```
+or 
+```{r}
+library(gmodels)
+
+# Cross Table for Model Evaluation
+CrossTable(x = test.df$STATUS, y = final_pred, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE)
+```
+
+Convert STATUS to numeric (1 for 'Shipped', 0 for 'Cancelled')
+```{r}
+test.df$STATUS <- as.numeric(as.character(test.df$STATUS))
+```
+
+Predict probabilities instead of hard labels
+```{r}
+knn_probs <- as.numeric(knn(train.norm.df, test.norm.df, train.df$STATUS, k = best_k, prob = TRUE))
+```
+
+Generate ROC curve
+```{r}
+roc_curve <- roc(test.df$STATUS, knn_probs)
+```
+
+Plot ROC Curve
+```{r}
+plot(roc_curve, col = "blue", main = "ROC Curve for k-NN Model")
+auc_value <- auc(roc_curve)
+cat("AUC Value =", auc_value)
+```
+
+```{r}
+final_pred <- knn(train.norm.df, valid.norm.df, train.df$STATUS, k = best_k)
+final_cm <- confusionMatrix(final_pred, as.factor(valid.df$STATUS))
+print(final_cm)
+```
+
+Conclusion
+```{r}
+cat("The optimal k value found was:", best_k, "which provides the highest validation accuracy.")
+cat("Final model evaluation results:")
+print(final_cm)
+```
