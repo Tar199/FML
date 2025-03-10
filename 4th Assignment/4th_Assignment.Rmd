@@ -1,0 +1,215 @@
+---
+title: "Assignment_4"
+author: "Tarun BT"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+Imported necessary library files required for task
+```{r}
+library(ggplot2)
+library(lattice)
+library(caret)
+library(e1071)
+library(dplyr)
+library(pROC)
+library(naivebayes)
+
+```
+
+Loading the data set
+```{r}
+Heart_disease <- read.csv("C:\\Users\\Tarun\\OneDrive\\Desktop\\R program\\4th Assignment\\Heart_disease.csv")
+
+```
+
+Checking for duplicate value and removing record from the data-set
+```{r}
+duplicates <- Heart_disease[duplicated(Heart_disease), ]
+cat("Number of duplicate record ",nrow(duplicates),"\n")
+print(duplicates) 
+
+df_unique <- Heart_disease %>% distinct() #data-set after removing the duplicate value
+nrow(df_unique)
+
+```
+
+Creating dummy variables
+```{r}
+df_unique$Target <- ifelse(df_unique$MAX_HeartRate > 170, "Yes", "No")
+df_unique$BP_New <- ifelse(df_unique$Blood_Pressure > 120, "Yes", "No")
+
+```
+
+Q1: Initial Prediction Based on Target Distribution
+```{r}
+target_table <- table(df_unique$Target)
+target_table
+
+```
+
+Bar Plot for Target Distribution
+```{r}
+ggplot(df_unique, aes(x = Target)) + geom_bar(fill = "steelblue") + ggtitle("Distribution of Target Variable")
+
+```
+Interpretation:
+The data set contains an imbalanced class distribution:
+No Heart Disease (No): 245 occurrences.
+Heart Disease (Yes): 57 occurrences.
+
+Since the majority class is No Heart Disease, the model is likely to predict NO more frequently, which could lead to misleading accuracy in an imbalanced data set (without any further information, ).
+
+
+Q2: Analysis of the First 30 Records
+```{r}
+Heart_disease30 <- df_unique[1:30, c("Target", "BP_New", "chest_pain_type")]
+Object1 <- ftable(Heart_disease30)
+Object1
+
+
+```
+
+pivot table without target column
+```{r}
+Object2 <- ftable(Heart_disease30[ ,-1])
+Object2 
+
+```
+
+2a. Computing Bayes Conditional Probabilities
+```{r}
+p1 <- Object1[3,1]/Object2[1,1] #Target=yes , BP_New=No & chest_pain_type=0
+p2 <- Object1[3,2]/Object2[1,2] #Target=yes , BP_New=No & Chest_pain_type=1
+p3 <- Object1[4,1]/Object2[2,1] #Target=yes , BP_New=Yes & Chest_pain_type=0
+p4 <- Object1[4,2]/Object2[2,2] #Target=yes , BP_New=Yes & Chest_pain_type=1
+
+```
+
+Conditional probabilities values
+```{r}
+cat("The conditional probability of having heart disease with no BP and No chest Pain:",p1,"\n")
+cat("The conditional probability of having heart disease with high BP and chest Pain:", p2,"\n")
+cat("The conditional probability of having heart disease with BP and No chest Pain:", p3 ,"\n")
+cat("The conditional probability of having heart disease with BP and chest Pain:", p4 ,"\n")
+
+```
+
+
+2b. Classification using a cutoff of 0.5
+```{r}
+Probability_Target <- rep(0, 30)
+
+for (i in 1:30) {
+  BP_New <- Heart_disease30$BP_New[i]  # Getting BP_New value for row i
+  chest_pain <- Heart_disease30$chest_pain_type[i]  # Getting chest_pain for row i
+  
+  # Matching the probability from pre-computed values (p1, p2, p3, p4)
+  if (BP_New == "No" & chest_pain == 0) {
+    Probability_Target[i] <- p1
+  } else if (BP_New == "Yes" & chest_pain == 1) {
+    Probability_Target[i] <- p2
+  } else if (BP_New == "Yes" & chest_pain == 0) {
+    Probability_Target[i] <- p3
+  } else if (BP_New == "No" & chest_pain == 1) {
+    Probability_Target[i] <- p4
+  }
+}
+
+Heart_disease30$Probability_Target <- Probability_Target
+Heart_disease30$Pred_Probability <- ifelse(Heart_disease30$Probability_Target > 0.5, "Yes", "No")
+Heart_disease30
+
+```
+
+2c. Manual Calculation of Naive Bayes Probability
+```{r}
+# Compute total instances
+total_count <- nrow(Heart_disease30)
+
+# Compute P(Target = Yes)
+p_target_yes <- sum(Heart_disease30$Target == "Yes") / total_count
+
+# Compute P(BP_New = Yes, chest_pain_type = 1 | Target = Yes)
+p_given_yes <- sum(Heart_disease30$BP_New == "Yes" & Heart_disease30$chest_pain_type == 1 & Heart_disease30$Target == "Yes") / sum(Heart_disease30$Target == "Yes")
+
+# Compute P(BP_New = Yes, chest_pain_type = 1)
+p_denominator <- sum(Heart_disease30$BP_New == "Yes" & Heart_disease30$chest_pain_type == 1) / total_count
+
+# Compute the final probability using Bayes' Theorem
+p_yes_given_bp_chest <- (p_given_yes * p_target_yes) / p_denominator
+
+# Print result
+cat("Manually compute the naive  Bayes conditional probability of an injury given that BP_New is Yes and chest_pain_type is 1 = ",p_yes_given_bp_chest, "\n")
+
+```
+Q3: Full Data set Analysis - Splitting into Training and Validation Sets
+```{r}
+set.seed(123)
+
+train.index <- sample(row.names(df_unique),0.6 * nrow(df_unique))
+valid.index <- setdiff(row.names(df_unique),train.index)
+
+train.df <- df_unique[train.index, ]
+valid.df <- df_unique[valid.index, ]
+
+nrow(train.df)
+nrow(valid.df)
+
+train.df<-train.df[,-9]
+valid.df<-valid.df[,-9]
+
+```
+
+Running Naive Bayes Classifier 
+```{r}
+nb_model <- naiveBayes(Target ~ chest_pain_type + BP_New, data = train.df,1)
+valid_pred <- predict(nb_model, valid.df)
+
+# Convert predictions and actual target variable to factors with the same levels
+valid.df$Target <- factor(valid.df$Target)
+valid_pred <- factor(valid_pred, levels = levels(valid.df$Target))
+
+# Compute confusion matrix
+conf_matrix <- confusionMatrix(valid_pred, valid.df$Target,positive = "Yes")
+
+```
+
+```{r}
+conf_matrix
+
+```
+As per the confusion matrix outcomes , the model has achieved an accuracy of 79.34%, but this is misleading due to class imbalance. The Naive Bayes model correctly identifies all non-heart disease cases, a Kappa value of 0. This shows that the model is highly biased towards the majority class and is not suitable for predictions.
+
+
+Thus, including all attributes improves both Kappa, leading to a better-performing and balanced model. 
+
+Running Naive Bayes Classifier including all the attributes. (Validation set)
+```{r}
+nb_model_v <- naiveBayes(Target ~., data = train.df)
+train_pred_v <- predict(nb_model_v, valid.df)
+
+# Convert predictions and actual target variable to factors with the same levels
+valid.df$Target <- factor(valid.df$Target)
+train_pred_v <- factor(train_pred_v, levels = levels(valid.df$Target))
+
+# Compute confusion matrix
+conf_matrix1_v <- confusionMatrix(train_pred_v, valid.df$Target, positive = "Yes")
+conf_matrix1_v
+
+```
+
+ROC Curve
+```{r}
+pred_probs_full <- predict(nb_model_v, valid.df, type = "raw")
+prob_yes_full <- pred_probs_full[, "Yes"]
+roc_full <- roc(valid.df$Target, prob_yes_full)
+plot(roc_full, col = "blue", main = "ROC Curve for All Attributes")
+auc_value <- auc(roc_full)
+auc_value
+
+```
+
+Plotted the ROC, to analyse the performance when all the attributes are included. AUC value is 0.9329. The model is performing good when all the attributes are considered.
