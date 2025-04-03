@@ -1,0 +1,141 @@
+---
+title: "5th_Assignment"
+author: "Tarun BT"
+date: "`r Sys.Date()`"
+output: html_document
+---
+Q1-A.
+Normalization: K-Means is sensitive to feature scaling. Normalizing the data set ensures that attributes with larger scales (e.g., Pro-line) don’t dominate the clustering process.
+
+Choosing k: The number of clusters affects how well the data is grouped. Methods like the Elbow Method (using WSS - Within-Cluster Sum of Squares) and Silhouette Score help determine an optimal k.
+
+Loading necessary library files. 
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(factoextra)
+library(cluster)
+library(fpc)
+library(dbscan)
+```
+
+Loading the data set
+```{r}
+wine <- read.csv("C:\\Users\\Tarun\\OneDrive\\Desktop\\R program\\5th_Assignment\\wine-clustering.csv")
+```
+
+Normalize data to ensure fair clustering
+```{r}
+wines.norm <- scale(wine)
+```
+
+Determine optimal k using WSS (Elbow Method)
+```{r}
+fviz_nbclust(wines.norm, kmeans, method = "wss") +  # Visualize elbow method
+geom_vline(xintercept = 3 , linetype="dashed", color="blue")
+```
+
+Determine optimal k using Silhouette Method
+```{r}
+fviz_nbclust(wines.norm, kmeans, method = "silhouette")  # Evaluate cluster quality
+```
+Q1-B.
+
+```{r}
+set.seed(123)  # Set seed for reproducibility
+k_optimal <- 3  # Set based on WSS & Silhouette results
+```
+
+Perform K-Means clustering
+```{r}
+kmeans.wines <- kmeans(wines.norm, centers = k_optimal, nstart = 25)
+```
+
+Visualize clusters formed by K-Means
+```{r}
+fviz_cluster(kmeans.wines, data = wines.norm)
+```
+
+Print cluster centers & sizes
+```{r}
+print(kmeans.wines$centers)  # Display the centroid values of clusters
+cat("Number of observation in each cluster: ",kmeans.wines$size,"\n")  # Shows number of observations in each cluster
+```
+Setting up and plotting centroids
+```{r}
+mincenter = min(kmeans.wines$centers)
+maxcenter = max(kmeans.wines$centers)
+plot(c(0), xaxt = 'n', ylab = "", type ="l", ylim = c(mincenter, maxcenter), xlim = c(0, 13))
+axis(1, at = c(1:13), xpd = TRUE, labels = c("Alc","Malic","Ash","Alca_Ash","Mag","T_Phenols","Flavanoids","NonFlav", "Proanth", "Color", "Hue", "OD280", "Proline"), cex.axis = 0.5)
+
+for(i in c(1:3))
+  lines(kmeans.wines$centers[i,], lty = i, lwd = 2)
+text(x = 0.5, y = kmeans.wines$centers[, 1], labels = paste("Cluster", c(1:3)))
+```
+
+Based upon wss and from silhouette the *k* value was discovered to be equal to 3. After conducting kmeans clustering, then specifically 3 special clusters were plotted. Because our data has more than 2 dimensions, therefore the plot uses Principle Component Analysis to visualize each of our clusters. A visual plot of centroids was made to better help understand clusters. Wines in cluster one possess very high malic acid, ash alcanlinity, nonflavanoid phenolic, and color intensity. Cluster one is lowest in many Flavanoids, Proanthocyanins, as well as Hue, and even OD280. Multiple Alchohol, Ash, Flavanoids, Proanthocyanins, OD280, as well as Proline are highest specifically in Cluster 2. Cluster 2 looks to be just about equal in Hue to cluster 3 at least. For Ash, Cluster 2 has the least Alcalinity, with nonflavanoid Phenols. Cluster 3 is not highest in multiple features; it is tied with Cluster 2 in Hue. Cluster 3 has the least Alcohol, Malic Acid, Ash, Magnesium, Color Intensity, and Proline. From the cluster plot it seems nearly all variability exists within Cluster 1, but the entire variability is rather minimal for these data at just 55.4%; Cluster 3 shows the greatest withinss value, also showing cluster 3's density is smaller and scattered more than the clusters.
+
+
+
+Q2-A
+DBSCAN is based on the density of data points and can perform well with clusters of varying size, DBSCAN clusters require a minimum amount of points and a distance between those points to form a cluster, this allows it to not be as sensitive to outliers and noise as those points can be left out. K-means requires the number of clusters specified before the algorithm is ran, this causes K-Means to make sure that every point in a dataset is put into a cluster even if that data point may be based on noise or is an outlier. K-Means is also based on centroids and the outliers can cause large shifts in what centroids are used. This makes K-Means much more sensitive to noise and outliers. Another main difference is DBSCAN can form clusters on non-linear data where k-means struggles because it is looking for globular groups. The differences between DBSCAN and K-Means can be overcome by having domain knowledge of the data and setting the parameters based on that knowledge.
+
+
+# Q2-B Code as requested
+```{r}
+#determining eps
+dbscan::kNNdistplot(wines.norm, k = 3)
+abline(h = 2.8, lty = 2)
+
+dbs.wine = fpc::dbscan(wines.norm, eps = 2.8, MinPts = 10)
+print(dbs.wine)
+fviz_cluster(dbs.wine, wines.norm, stand = FALSE, frame = FALSE, geom = "point")
+```
+
+Using larger value of k based on rules of thumb
+```{r}
+#determining eps
+dbscan::kNNdistplot(wines.norm, k = 3)
+abline(h = 3.7, lty = 2)
+ 
+dbs.wine = fpc::dbscan(wines.norm, eps = 3.7, MinPts = 26) # MinPts≈2×13=26
+print(dbs.wine)
+fviz_cluster(dbs.wine, wines.norm, stand = FALSE, frame = FALSE, geom = "point")
+```
+
+According to rules of thumb, we will get one cluster including all data points with minimum noise points such that esp= 3.7, MinPts=26 & k=3. So, in the next Chunk (13),i have tested for multiple values of epsilon and gave reasons for the value and the interpretation.
+
+Testing of Multiple values for epsilon ()
+```{r}
+#determining eps
+dbscan::kNNdistplot(wines.norm, k = 3)
+abline(h = 2.3, lty = 3)
+
+dbs.wine = fpc::dbscan(wines.norm, eps = 2.3, MinPts = 3) 
+print(dbs.wine)
+fviz_cluster(dbs.wine, wines.norm, stand = FALSE, frame = FALSE, geom = "point")
+
+```
+
+Q2-B
+After plotting the distance values for KNN using the value of 3 for K, it appears that the distance changes sharply at around 2.8, which is the value for epsilon I used. I used 3 for minPts because that was the value used regarding the number of clusters as requested in the problem. It was also used to determine epsilon. Using these definite values, it appears there is precisely a single cluster when using DBSCAN, along with fifteen points of noise. Reworking of DBSCAN using just one value regarding minPts based along dimensions + 1, one fresh value toward epsilon equaled 3.1. The grouping wasn't changed much, but noise points dropped to ten. Another attempt got done via the 26 value that is for minPts; it is from 2*dimensions. This still formed that same group and cut several noise dots by 2. This particular set of tests indicates that if epsilon, as well as minPts, move together in such a set way then the results are similar. However, if I simply change up the value of minPts to the value found by 2-Dimensions then I find out that 2 clusters are thereby formed. Also, there is an increase in the number of noise points identified. Upon alteration of the epsilon value toward a higher 4.5, each point fully ended up inside a cluster, absent noise. By using so limited a value of epsilon 0.5, the points are identified as noise. Changing epsilon by just a small bit to 3.3 does still find one more group, but it overlaps group 1. This is simply not quite accurate, given that there should exist. Special types of wine should exist for certain. Given epsilon is 2.4, we then get 2 clusters; however, cluster 2 contains just 3 observations which do meet our minimum. At this specific definite value of epsilon our clusters do start to greatly resemble what was found in K-Means. The issue arises in that our data may have quite a few features that are not relevant to this classification, in addition, the data is inconsistent in its density, which is why we have overlapping clusters and in some combinations of parameters only 1 cluster is existing.
+
+Q3 
+
+Kmeans    
+Pro
+
+Kmeans for our data set are that it gives 3 special clusters along with appearing to work better with the lower amount of observations that this data set contains.
+
+Con
+
+Kmeans for the data set are the total variance is small and clusters are close in size implying we might miss detail and perhaps have more clusters than 3.
+
+DBSCAN    
+Pro
+
+DBSCAN here is that we need not fret over outliers and noise since the noise gets identified.
+
+Con
+
+DBSCAN are that we do not have enough observations as well as too many features, so DBSCAN can only determine 1 cluster and some noise points, which really does not tell us anything. One more con is that when determining the value for epsilon, the kNN distance curve actually is not really smooth, thereby indicating multiple levels of density, thus causing DBSCAN to under perform.
